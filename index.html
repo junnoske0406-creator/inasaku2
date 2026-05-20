@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2d5a27">
+<title>稲作管理台帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a1508;--earth:#3d2b0e;--straw:#c8a84b;--sp:#f5edcf;
+  --rice:#f9f6ee;--rd:#ede8d8;--paddy:#2d5a27;--pm:#4a7c43;
+  --pp:#ddeedd;--sprout:#7ab648;--harvest:#c0602a;
+  --muted:#8a7a5e;--border:#d9d0bb;--shadow:rgba(26,21,8,.10);
+}
+*,*:before,*:after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--sp);font-family:'Noto Sans JP',sans-serif;color:var(--ink);min-height:100vh;}
+
+/* setup */
+#setup{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--sp);z-index:2000;overflow-y:auto;padding:20px 14px 60px;}
+.sc{background:var(--rice);border-radius:16px;padding:26px 20px;width:100%;max-width:580px;margin:0 auto;border:1px solid var(--border);box-shadow:0 4px 24px var(--shadow);}
+.st{font-family:'Noto Serif JP',serif;font-size:20px;color:var(--paddy);margin-bottom:6px;}
+.ss{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.8;}
+.slbl{font-size:11px;font-weight:700;color:var(--paddy);letter-spacing:.8px;text-transform:uppercase;margin:18px 0 6px;padding:3px 0;border-bottom:2px solid var(--pp);}
+.snote{font-size:13px;color:var(--ink);line-height:1.9;margin-bottom:6px;}
+.snote b{color:var(--paddy);}
+.scode{background:#1e1e1e;color:#d4d4d4;border-radius:8px;padding:12px 14px;font-family:'Courier New',monospace;font-size:11.5px;word-break:break-all;margin:8px 0 10px;white-space:pre-wrap;max-height:200px;overflow-y:auto;border:1px solid #333;}
+.slink{color:var(--paddy);font-weight:700;text-decoration:none;}
+#setup-err{color:var(--harvest);font-size:13px;font-weight:700;margin:8px 0;min-height:20px;line-height:1.5;}
+.warn-box{background:#fff8e1;border:1px solid #fbc02d;border-radius:10px;padding:12px 14px;margin:14px 0;font-size:13px;line-height:1.8;color:#5d4037;}
+.warn-box b{color:#e65100;}
+
+/* sync bar */
+#sbar{background:var(--rice);border-bottom:1px solid var(--border);padding:5px 14px;font-size:11px;font-weight:700;display:none;align-items:center;}
+.sdot{width:7px;height:7px;border-radius:99px;display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0;}
+.sok{background:#7ab648;} .ssav{background:#c8a84b;} .serr{background:#c0602a;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.ssav{animation:pulse .8s infinite;}
+
+/* header */
+#hdr{
+  background:var(--paddy);height:54px;
+  padding-left:calc(14px + env(safe-area-inset-left,0px));
+  padding-right:calc(14px + env(safe-area-inset-right,0px));
+  display:flex;align-items:center;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 3px 12px rgba(0,0,0,.2);
+}
+#hdr h1{color:#fff;font-family:'Noto Serif JP',serif;font-size:16px;flex:1;}
+#ybar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;}
+.yb{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;min-height:30px;}
+.yb.on{background:#7ab648;color:var(--paddy);border-color:transparent;}
+
+/* tabs */
+#tabs{background:var(--rice);border-bottom:2px solid var(--border);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tb{background:none;border:none;border-bottom:3px solid transparent;padding:11px 14px;cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap;font-family:inherit;min-height:44px;}
+.tb.on{color:var(--paddy);border-bottom-color:var(--paddy);}
+
+/* main */
+#main{
+  max-width:1020px;margin:0 auto;
+  padding:20px calc(14px + env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) calc(14px + env(safe-area-inset-left,0px));
+}
+
+/* cards */
+.card{background:var(--rice);border-radius:14px;border:1px solid var(--border);box-shadow:0 2px 10px var(--shadow);}
+.cp{padding:18px;}
+
+/* kpi */
+.kg{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+.ki{padding:14px 16px;min-width:140px;flex:1;}
+.ki-icon{font-size:20px;margin-bottom:3px;}
+.ki-lbl{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:2px;}
+.ki-val{font-size:18px;font-weight:700;}
+
+/* bar chart */
+.bch{display:flex;align-items:flex-end;height:88px;}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;margin-right:2px;}
+.bc:last-child{margin-right:0;}
+.bf{width:100%;border-radius:3px 3px 0 0;min-height:3px;position:relative;}
+.bn{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;white-space:nowrap;}
+.bl{font-size:8px;color:var(--muted);margin-top:2px;}
+
+/* table */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:9px 11px;font-weight:700;border-bottom:2px solid var(--border);white-space:nowrap;}
+td{padding:9px 11px;border-bottom:1px solid var(--border);}
+.r0 td{background:var(--rice);}
+.r1 td{background:var(--rd);}
+tfoot td{font-weight:700;border-top:2px solid;}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;border-radius:99px;padding:2px 9px;font-size:12px;font-weight:700;}
+.bdot{width:6px;height:6px;border-radius:99px;display:inline-block;margin-right:4px;}
+.bg{background:var(--pp);color:var(--paddy);}
+.ba{background:var(--sp);color:var(--earth);}
+
+/* buttons */
+.btn{cursor:pointer;border-radius:8px;font-weight:700;font-family:inherit;border:none;padding:8px 16px;font-size:13px;min-height:40px;}
+.btn:active{opacity:.7;}
+.bp{background:var(--paddy);color:#fff;}
+.bg2{background:transparent;color:var(--paddy);border:1.5px solid var(--paddy);}
+.bd{background:var(--harvest);color:#fff;}
+.bm{background:var(--rd);color:var(--earth);border:1.5px solid var(--border);}
+.bs{padding:4px 10px;font-size:12px;min-height:34px;}
+
+/* modal */
+.mov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(20,15,5,.5);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;}
+.mb{background:var(--rice);border-radius:16px;padding:24px 22px;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;border:1px solid var(--border);}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.mt{font-family:'Noto Serif JP',serif;font-size:17px;color:var(--ink);}
+.mx{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px 8px;min-height:36px;}
+
+/* form */
+.fl{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;}
+.fw{margin-bottom:12px;}
+.inp,.sel,.txa{width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--rice);color:var(--ink);font-family:inherit;outline:none;font-size:16px;}
+.txa{resize:vertical;}
+
+/* misc */
+.pt{background:var(--rd);border-radius:4px;height:7px;margin-top:3px;}
+.pf{height:7px;border-radius:4px;}
+.cr{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;}
+.chip{border-radius:99px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:13px;border:2px solid;font-family:inherit;min-height:36px;}
+.sec{font-family:'Noto Serif JP',serif;font-size:19px;color:var(--ink);margin-bottom:16px;}
+.fr{margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.fsel{padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--rice);font-size:14px;color:var(--ink);font-family:inherit;min-height:36px;}
+.g2{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;}
+.g2>*{flex:1;min-width:280px;}
+.empty{text-align:center;padding:44px 16px;color:var(--muted);font-size:14px;}
+.rrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+
+/* toast */
+#toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%) translateY(80px);
+  background:var(--paddy);color:#fff;border-radius:99px;padding:10px 22px;
+  font-weight:700;font-size:13px;z-index:999;transition:transform .3s;
+  box-shadow:0 4px 18px rgba(0,0,0,.22);pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+button,input,select,textarea{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+@media(max-width:480px){
+  td,th{padding:8px;}
+  .ki{min-width:calc(50% - 5px);}
+  .mb{padding:18px 14px;}
+  .sec{font-size:17px;}
+  .yb{padding:4px 8px;font-size:11px;}
+}
+</style>
+</head>
+<body>
+
+<!-- セットアップ画面 -->
+<div id="setup">
+  <div class="sc">
+    <div style="font-size:32px;margin-bottom:8px">🌾</div>
+    <div class="st">稲作管理台帳</div>
+    <div class="ss">GoogleスプレッドシートをDBとして、Mac・iPhoneでデータを共有します。</div>
+
+    <div class="warn-box">
+      ⚠️ <b>このアプリはhttps://のURLからのみ動作します。</b><br>
+      ローカルのHTMLファイル（file://）では通信できません。<br>
+      必ず <b>GitHub Pages</b> などに置いてからお使いください。<br>
+      → 別紙「GitHub Pagesセットアップ手順書」をご確認ください。
+    </div>
+
+    <div class="slbl">STEP 1 — Googleスプレッドシートを作成</div>
+    <div class="snote">
+      ① <a class="slink" href="https://sheets.google.com" target="_blank">sheets.google.com</a> を開き「空白のスプレッドシート」を作成<br>
+      ② タイトルを「稲作管理台帳」などに変更（任意）
+    </div>
+
+    <div class="slbl">STEP 2 — Apps Script を貼り付けてデプロイ</div>
+    <div class="snote">
+      ① スプレッドシートのメニュー <b>「拡張機能」→「Apps Script」</b> を開く<br>
+      ② エディタの内容を<b>全削除</b>し、下のコードを貼り付けて <b>「💾 保存」</b><br>
+    </div>
+    <div style="position:relative">
+      <div class="scode" id="gascode"></div>
+      <button class="btn bp bs" id="copybtn" style="position:absolute;top:8px;right:8px;min-height:28px;padding:3px 10px;font-size:11px" onclick="doCopy()">コピー</button>
+    </div>
+    <div class="snote">
+      ③ <b>「デプロイ」→「新しいデプロイ」</b> をクリック<br>
+      ④ 歯車アイコン → 種類: <b>「ウェブアプリ」</b> を選択<br>
+      ⑤ 実行ユーザー: <b>「自分」</b> / アクセス権: <b>「全員」</b> → 「デプロイ」<br>
+      ⑥ Googleの認証ページで <b>「詳細」→「〇〇（安全でないページ）へ移動」→「許可」</b><br>
+      ⑦ 表示された <b>「ウェブアプリのURL」</b> をコピー（必ず <code style="background:var(--rd);padding:1px 5px;border-radius:3px">/exec</code> で終わるURL）
+    </div>
+
+    <div class="slbl">STEP 3 — URLを入力して接続</div>
+    <div class="fw" style="margin-top:10px">
+      <label class="fl">ウェブアプリのURL（/exec で終わるURL）</label>
+      <input class="inp" id="gasurl" type="url"
+        placeholder="https://script.google.com/macros/s/〇〇〇/exec"
+        autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <div id="setup-err"></div>
+    <button class="btn bp" style="width:100%;font-size:15px;margin-top:4px" id="setup-btn" onclick="doConnect()">
+      接続してアプリを起動 →
+    </button>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">
+      URLはこのデバイスにのみ保存されます。他の端末でも同じURLを入力すると共有できます。
+    </p>
+  </div>
+</div>
+
+<!-- アプリ本体 -->
+<div id="hdr">
+  <span style="font-size:20px;margin-right:8px">🌾</span>
+  <h1>稲作管理台帳</h1>
+  <div id="ybar"></div>
+</div>
+
+<div id="sbar">
+  <span class="sdot sok" id="sdot"></span>
+  <span id="smsg">同期済み</span>
+  <span style="flex:1"></span>
+  <span id="stime" style="color:var(--muted);font-size:10px;margin-right:8px"></span>
+  <button class="btn bm bs" style="margin-right:4px;min-height:26px;padding:3px 10px;font-size:11px" onclick="doSync()">↻ 同期</button>
+  <button class="btn bm bs" style="min-height:26px;padding:3px 10px;font-size:11px" onclick="openGasSet()">⚙</button>
+</div>
+
+<nav id="tabs">
+  <button class="tb on" data-t="summary">📊 年間サマリー</button>
+  <button class="tb" data-t="fields">🗺 圃場別集計</button>
+  <button class="tb" data-t="works">🌾 作業記録</button>
+  <button class="tb" data-t="inputs">🌿 肥料・農薬</button>
+  <button class="tb" data-t="expenses">💴 経費</button>
+</nav>
+
+<main id="main"><div class="empty">読み込み中…</div></main>
+<div id="toast"></div>
+
+<script>
+/* ── SAFE STORAGE ── */
+var _m={};
+var LS={
+  get:function(k){try{return localStorage.getItem(k);}catch(e){return _m[k]||null;}},
+  set:function(k,v){try{localStorage.setItem(k,v);}catch(e){_m[k]=v;}},
+  del:function(k){try{localStorage.removeItem(k);}catch(e){delete _m[k];}}
+};
+
+/* ── CONSTANTS ── */
+var SK='inasaku_v6',GUK='inasaku_gas6';
+var WT_DEFAULT=["代かき","田植え","除草","水管理","追肥","農薬散布","収穫","脱穀","その他"];
+var ET=["燃料代","資材費","農薬代","肥料代","修理費","外注費","その他"];
+
+/* 作業種別はDBに保存（全年共通）。wtypes()で常に最新リストを取得する */
+function wtypes(){return DB._wtypes||WT_DEFAULT;}
+/* 後方互換：WT参照箇所をwtypes()に統一するためのエイリアス */
+var WT=WT_DEFAULT; // ※直接参照しないこと。wtypes()を使う
+var UT=["kg","L","袋","本","個"];
+var FH=[
+  {bg:"#ddeedd",tx:"#1e4d1a",dt:"#4a7c43"},{bg:"#daeaf3",tx:"#1a3d52",dt:"#3b7ea1"},
+  {bg:"#f5edcf",tx:"#5a3d00",dt:"#c8a84b"},{bg:"#fae5d6",tx:"#5a1e00",dt:"#c0602a"},
+  {bg:"#ede0f5",tx:"#3d1a5a",dt:"#8b5ca0"},{bg:"#e0f0f5",tx:"#003d4d",dt:"#2a8a9a"},
+  {bg:"#f5e0e0",tx:"#5a1a1a",dt:"#b04040"},{bg:"#e8f5e0",tx:"#1a4d00",dt:"#5a9a2a"},
+  {bg:"#f0ece0",tx:"#3d3000",dt:"#9a8030"},{bg:"#e0e8f5",tx:"#0d2060",dt:"#2a4ab0"}
+];
+var EC=["#c8a84b","#c0602a","#3b7ea1","#7ab648","#4a7c43","#8b5ca0","#8a7a5e"];
+
+/* GASコード（スプレッドシートに貼り付けるもの） */
+var GAS_SRC=[
+'// 稲作管理台帳 - Google Apps Script',
+'var SHEET_NAME = "data";',
+'',
+'function doGet(e) {',
+'  var p = e.parameter;',
+'  var callback = p.callback || "";',
+'  var action   = p.action   || "";',
+'  try {',
+'    if (action === "read") {',
+'      return res(callback, {ok:true, data: readData()});',
+'    }',
+'    if (action === "write") {',
+'      var payload = JSON.parse(p.payload || "{}");',
+'      writeData(payload);',
+'      return res(callback, {ok:true, data:"saved"});',
+'    }',
+'    return res(callback, {ok:false, msg:"unknown action: " + action});',
+'  } catch(err) {',
+'    return res(callback, {ok:false, msg:String(err)});',
+'  }',
+'}',
+'',
+'function readData() {',
+'  var ss    = SpreadsheetApp.getActiveSpreadsheet();',
+'  var sheet = ss.getSheetByName(SHEET_NAME);',
+'  if (!sheet) {',
+'    sheet = ss.insertSheet(SHEET_NAME);',
+'    sheet.getRange(1,1).setValue("json");',
+'    sheet.getRange(2,1).setValue("{}");',
+'  }',
+'  if (sheet.getLastRow() < 2) return {};',
+'  var raw = sheet.getRange(2, 1).getValue();',
+'  try { return JSON.parse(raw); } catch(e) { return {}; }',
+'}',
+'',
+'function writeData(data) {',
+'  var ss    = SpreadsheetApp.getActiveSpreadsheet();',
+'  var sheet = ss.getSheetByName(SHEET_NAME);',
+'  if (!sheet) {',
+'    sheet = ss.insertSheet(SHEET_NAME);',
+'    sheet.getRange(1,1).setValue("json");',
+'  }',
+'  if (sheet.getLastRow() < 2) sheet.appendRow([""]);',
+'  sheet.getRange(2, 1).setValue(JSON.stringify(data));',
+'}',
+'',
+'function res(callback, obj) {',
+'  var json = JSON.stringify(obj);',
+'  if (callback) {',
+'    json = callback + "(" + json + ");";',
+'    return ContentService',
+'      .createTextOutput(json)',
+'      .setMimeType(ContentService.MimeType.JAVASCRIPT);',
+'  }',
+'  return ContentService',
+'    .createTextOutput(json)',
+'    .setMimeType(ContentService.MimeType.JSON);',
+'}'
+].join('\n');
+
+document.getElementById('gascode').textContent = GAS_SRC;
+
+/* ── STATE ── */
+var DB={}, year=2024, tab='summary', fieldTab='';
+var wf={field:'all',type:'all'}, ef='all';
+var gasUrl='', saveTimer=null, syncing=false;
+
+/* ── SAMPLE DATA ── */
+function mkSample(){
+  return {
+    fields:["第1圃場","第2圃場","第3圃場","第4圃場","第5圃場"],
+    works:[
+      {id:1,date:"2024-04-08",field:"第1圃場",type:"代かき",hours:3,note:""},
+      {id:2,date:"2024-04-09",field:"第2圃場",type:"代かき",hours:3.5,note:""},
+      {id:3,date:"2024-05-07",field:"第1圃場",type:"田植え",hours:6,note:"コシヒカリ"},
+      {id:4,date:"2024-05-08",field:"第2圃場",type:"田植え",hours:5,note:"コシヒカリ"},
+      {id:5,date:"2024-05-09",field:"第3圃場",type:"田植え",hours:5.5,note:"ひとめぼれ"},
+      {id:6,date:"2024-05-10",field:"第4圃場",type:"田植え",hours:4,note:"ひとめぼれ"},
+      {id:7,date:"2024-06-14",field:"第1圃場",type:"除草",hours:2,note:""},
+      {id:8,date:"2024-07-18",field:"第3圃場",type:"追肥",hours:1.5,note:"穂肥"},
+      {id:9,date:"2024-09-08",field:"第1圃場",type:"収穫",hours:8,note:""},
+      {id:10,date:"2024-09-09",field:"第2圃場",type:"収穫",hours:7,note:""},
+      {id:11,date:"2024-09-10",field:"第3圃場",type:"収穫",hours:7.5,note:""},
+      {id:12,date:"2024-09-11",field:"第4圃場",type:"収穫",hours:6,note:""},
+      {id:13,date:"2024-09-12",field:"第5圃場",type:"収穫",hours:5,note:""}
+    ],
+    fertilizers:[
+      {id:1,orderDate:"2024-03-18",useDate:"2024-04-08",name:"有機基肥",amount:60,unit:"kg",price:110,field:"第1圃場"},
+      {id:2,orderDate:"2024-03-18",useDate:"2024-04-09",name:"有機基肥",amount:55,unit:"kg",price:110,field:"第2圃場"},
+      {id:3,orderDate:"2024-06-28",useDate:"2024-07-18",name:"穂肥NK",amount:25,unit:"kg",price:240,field:"第3圃場"}
+    ],
+    expenses:[
+      {id:1,date:"2024-04-08",type:"燃料代",item:"軽油",amount:9200,note:"トラクター"},
+      {id:2,date:"2024-05-07",type:"燃料代",item:"軽油",amount:7400,note:"田植機"},
+      {id:3,date:"2024-06-01",type:"農薬代",item:"除草剤",amount:14500,note:""},
+      {id:4,date:"2024-09-08",type:"燃料代",item:"軽油",amount:18000,note:"コンバイン"},
+      {id:5,date:"2024-08-20",type:"修理費",item:"コンバイン点検",amount:22000,note:""}
+    ]
+  };
+}
+
+/* ── UTILS ── */
+function yd(){return DB[year]||{fields:[],works:[],fertilizers:[],expenses:[]};}
+function yrs(){return Object.keys(DB).map(Number).sort(function(a,b){return b-a;});}
+function nid(a){var m=0;for(var i=0;i<a.length;i++)if(a[i].id>m)m=a[i].id;return m+1;}
+function yen(n){return'¥'+Number(n||0).toLocaleString();}
+function fd(d){return d?d.replace(/-/g,'/'):'—';}
+function mi(d){return d?parseInt(d.split('-')[1])-1:-1;}
+function fhue(name){var d=yd();var i=d.fields.indexOf(name);return FH[i>=0?i%10:0];}
+
+function el(tag,cls,sty,txt){
+  var e=document.createElement(tag);
+  if(cls)e.className=cls;
+  if(sty)e.style.cssText=sty;
+  if(txt!=null)e.textContent=txt;
+  return e;
+}
+function ap(p){for(var i=1;i<arguments.length;i++)if(arguments[i])p.appendChild(arguments[i]);return p;}
+
+/* ── 作業時間を取得（hours優先、なければ時刻差） */
+function getWorkHours(w){
+  if(w.hours!=null&&w.hours!=='')return Number(w.hours);
+  if(w.startTime&&w.endTime){
+    var sp=w.startTime.split(':'),ep=w.endTime.split(':');
+    var sm=parseInt(sp[0],10)*60+parseInt(sp[1],10);
+    var em=parseInt(ep[0],10)*60+parseInt(ep[1],10);
+    var diff=em-sm;if(diff<=0)diff+=1440;
+    return Math.floor(diff/30)*0.5;
+  }
+  return 0;
+}
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2400);
+}
+
+/* ── SYNC UI ── */
+function sstat(state,msg){
+  var d=document.getElementById('sdot'),m=document.getElementById('smsg');
+  if(!d)return;
+  d.className='sdot '+({ok:'sok',saving:'ssav',error:'serr'}[state]||'ssav');
+  if(m)m.textContent=msg;
+}
+function stime(){
+  var e=document.getElementById('stime');
+  if(e)e.textContent='最終同期: '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ── LOCAL STORAGE ── */
+function lsave(){LS.set(SK,JSON.stringify(DB));}
+function lload(){var r=LS.get(SK);if(r){try{DB=JSON.parse(r);}catch(e){DB={};}}}
+
+/* ── GAS通信（JSONP） ──
+   GASのWebアプリはリダイレクトを返す。
+   fetch()はリダイレクト後のCORSヘッダーがなく失敗するため
+   JSONPを使う。GAS側でcallback=xxxを受け取りJavaScriptで返す。
+*/
+function gasCall(params){
+  return new Promise(function(resolve, reject){
+    /* コールバック名（ユニーク） */
+    var cbName = '_gcb_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+    var done = false;
+
+    var timer = setTimeout(function(){
+      if(done)return; done=true;
+      cleanup();
+      reject(new Error('タイムアウト（15秒）。URLと通信環境を確認してください。'));
+    }, 15000);
+
+    function cleanup(){
+      clearTimeout(timer);
+      if(window[cbName]!==undefined){
+        try{delete window[cbName];}catch(e){window[cbName]=undefined;}
+      }
+      var sc=document.getElementById(cbName);
+      if(sc&&sc.parentNode)sc.parentNode.removeChild(sc);
+    }
+
+    window[cbName] = function(data){
+      if(done)return; done=true;
+      cleanup();
+      if(data && data.ok===true) resolve(data.data);
+      else reject(new Error(data ? String(data.msg) : 'GASから不正なレスポンス'));
+    };
+
+    /* クエリ文字列を組み立てる */
+    var qs = 'callback=' + encodeURIComponent(cbName);
+    var keys = Object.keys(params);
+    for(var i=0;i<keys.length;i++){
+      qs += '&' + encodeURIComponent(keys[i]) + '=' + encodeURIComponent(params[keys[i]]);
+    }
+
+    var sc = document.createElement('script');
+    sc.id = cbName;
+    sc.onerror = function(){
+      if(done)return; done=true;
+      cleanup();
+      reject(new Error('スクリプト読み込みエラー。GASのURLが正しいか確認してください。'));
+    };
+    sc.src = gasUrl + '?' + qs;
+    document.head.appendChild(sc);
+  });
+}
+
+function gasRead(){return gasCall({action:'read'});}
+function gasWrite(data){return gasCall({action:'write', payload:JSON.stringify(data)});}
+
+/* ── SAVE ── */
+function save(){
+  lsave();
+  sstat('saving','保存中…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    gasWrite(DB)
+      .then(function(){sstat('ok','同期済み');stime();})
+      .catch(function(e){sstat('error','同期失敗: '+e.message);});
+  }, 800);
+}
+
+/* ── SYNC ── */
+function doSync(){
+  if(syncing)return;
+  syncing=true;
+  sstat('saving','同期中…');
+  gasRead()
+    .then(function(r){
+      if(r && typeof r==='object' && Object.keys(r).length>0){DB=r;lsave();}
+      var y=yrs();
+      if(!DB[year])year=y.length?y[0]:new Date().getFullYear();
+      sstat('ok','同期済み');stime();render();toast('最新データを取得しました');
+    })
+    .catch(function(e){
+      sstat('error','同期失敗');
+      toast('同期失敗: '+e.message);
+    })
+    .then(function(){syncing=false;});
+}
+
+/* ── COPY GAS CODE ── */
+function doCopy(){
+  var btn=document.getElementById('copybtn');
+  function onOk(){btn.textContent='✓ コピー完了';setTimeout(function(){btn.textContent='コピー';},2000);}
+  function onNg(){btn.textContent='手動でコピーしてください';}
+  try{
+    if(window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(GAS_SRC).then(onOk).catch(execFallback);
+    } else { execFallback(); }
+  }catch(e){execFallback();}
+  function execFallback(){
+    var ta=document.createElement('textarea');
+    ta.value=GAS_SRC;
+    ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0;font-size:16px;';
+    document.body.appendChild(ta);ta.focus();ta.select();
+    var ok=false;try{ok=document.execCommand('copy');}catch(e){}
+    document.body.removeChild(ta);
+    if(ok)onOk();else onNg();
+  }
+}
+
+/* ── CONNECT ── */
+function doConnect(){
+  var url=(document.getElementById('gasurl').value||'').trim();
+  var errEl=document.getElementById('setup-err');
+  errEl.textContent='';
+
+  if(!url){
+    errEl.textContent='URLを入力してください';return;
+  }
+  if(url.indexOf('https://script.google.com')!==0){
+    errEl.textContent='URLは https://script.google.com で始まる必要があります';return;
+  }
+  if(url.indexOf('/exec')<0){
+    errEl.textContent='URLは /exec で終わる必要があります（/dev ではなく /exec）';return;
+  }
+
+  var btn=document.getElementById('setup-btn');
+  btn.textContent='接続中…';btn.disabled=true;
+  errEl.textContent='';
+  gasUrl=url;
+
+  gasRead()
+    .then(function(r){
+      LS.set(GUK, url);
+      document.getElementById('setup').style.display='none';
+      var sb=document.getElementById('sbar');
+      sb.style.display='flex';
+
+      if(r && typeof r==='object' && Object.keys(r).length>0){
+        DB=r; lsave(); year=yrs()[0]||2024;
+      } else {
+        DB={2024:mkSample()}; lsave(); year=2024;
+        gasWrite(DB).catch(function(){});
+      }
+      sstat('ok','同期済み');stime();render();
+    })
+    .catch(function(e){
+      btn.textContent='接続してアプリを起動 →';btn.disabled=false;
+      errEl.textContent='❌ 接続失敗: '+e.message;
+    });
+}
+
+/* ── GAS SETTINGS MODAL ── */
+function openGasSet(){
+  var wrap=el('div');
+  var fi=el('div','fw');
+  var lbl=el('label','fl',null,'ウェブアプリのURL');
+  var inp=el('input','inp');inp.type='url';inp.id='set-gasurl';
+  inp.value=gasUrl;inp.autocomplete='off';inp.autocorrect='off';inp.autocapitalize='none';
+  ap(fi,lbl,inp);
+  var note=el('p',null,'font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6','URLを変更するとデータが再読み込みされます。');
+  var btns=el('div',null,'display:flex;gap:8px;justify-content:flex-end');
+  var cc=el('button','btn bm',null,'キャンセル');
+  var ok=el('button','btn bp',null,'再接続');
+  cc.onclick=function(){var o=document.querySelector('.mov');if(o)o.parentNode.removeChild(o);};
+  ok.onclick=function(){
+    var u=document.getElementById('set-gasurl');
+    var url=u?u.value.trim():'';
+    var o=document.querySelector('.mov');if(o)o.parentNode.removeChild(o);
+    if(!url)return;
+    gasUrl=url;LS.set(GUK,url);doSync();
+  };
+  ap(btns,cc,ok);ap(wrap,fi,note,btns);
+  openModal('GAS URL の変更',wrap);
+}
+
+/* ── MODAL ── */
+function openModal(title,content){
+  var ov=el('div','mov');
+  var box=el('div','mb');
+  var mh=el('div','mh');
+  ap(mh,el('span','mt',null,title));
+  var mx=el('button','mx',null,'✕');
+  mx.onclick=function(){if(ov.parentNode)ov.parentNode.removeChild(ov);};
+  mh.appendChild(mx);
+  ap(box,mh,content);ap(ov,box);
+  ov.addEventListener('click',function(e){if(e.target===ov&&ov.parentNode)ov.parentNode.removeChild(ov);});
+  document.body.appendChild(ov);
+  return ov;
+}
+
+/* ── FORM HELPERS ── */
+function fld(label,input){var w=el('div','fw');ap(w,el('label','fl',null,label),input);return w;}
+function mkI(type,val,attrs){
+  var e=el('input','inp');e.type=type||'text';
+  if(val!=null)e.value=val;
+  if(attrs)for(var k in attrs)e[k]=attrs[k];
+  return e;
+}
+function mkS(opts,val){
+  var s=el('select','sel');
+  for(var i=0;i<opts.length;i++){
+    var o=document.createElement('option');o.value=opts[i][0];o.textContent=opts[i][1]||opts[i][0];s.appendChild(o);
+  }
+  if(val!=null)s.value=val;
+  return s;
+}
+function mkT(val){var t=el('textarea','txa');t.rows=2;if(val!=null)t.value=val;return t;}
+function fieldOpts(){return yd().fields.map(function(f){return[f,f];}).concat([['','未設定']]);}
+
+/* ── BADGES ── */
+function fbadge(name){
+  if(!name)return el('span',null,'color:var(--muted);font-size:12px','—');
+  var fc=fhue(name);
+  var b=el('span','badge');b.style.cssText='background:'+fc.bg+';color:'+fc.tx+';border:1px solid '+fc.dt+'44';
+  var d=el('span','bdot');d.style.background=fc.dt;
+  b.appendChild(d);b.appendChild(document.createTextNode(name));return b;
+}
+function tbadge(text,amber){
+  var b=el('span','badge '+(amber?'ba':'bg'));b.textContent=text;return b;
+}
+
+/* ── BAR CHART ── */
+function barChart(data,color){
+  var max=0;for(var i=0;i<data.length;i++)if(data[i].v>max)max=data[i].v;if(!max)max=1;
+  var row=el('div','bch');
+  for(var i=0;i<data.length;i++){
+    var d=data[i];
+    var h=d.v?Math.round((d.v/max)*68)+10:3;
+    var col=el('div','bc');
+    var bf=el('div','bf');bf.style.cssText='background:'+(d.v?color:'var(--border)')+';height:'+h+'px';
+    if(d.v){var bn=el('span','bn');bn.style.color=color;bn.textContent=d.v;bf.appendChild(bn);}
+    ap(col,bf,el('span','bl',null,d.l));row.appendChild(col);
+  }
+  return row;
+}
+function progBar(pct,color){
+  var t=el('div','pt');var f=el('div','pf');f.style.cssText='width:'+pct+'%;background:'+color;t.appendChild(f);return t;
+}
+
+/* ── YEAR BAR ── */
+function renderYearBar(){
+  var bar=document.getElementById('ybar');bar.innerHTML='';
+  var ys=yrs();
+  for(var i=0;i<ys.length;i++){
+    (function(y){
+      var w=el('span',null,'position:relative;display:inline-block');
+      var btn=el('button','yb'+(y===year?' on':''),null,y+'年');
+      btn.onclick=function(){year=y;if(!yd().fields.length)fieldTab='';render();};
+      var del=el('button',null,'position:absolute;top:-5px;right:-6px;width:16px;height:16px;border-radius:99px;background:#c0602a;color:#fff;border:none;cursor:pointer;font-size:10px;font-weight:700;padding:0;display:flex;align-items:center;justify-content:center;z-index:10;min-height:0','×');
+      del.onclick=function(e){
+        e.stopPropagation();
+        if(!confirm(y+'年のデータを削除しますか？\n※この操作は元に戻せません'))return;
+        delete DB[y];var rem=yrs();
+        year=rem.length?rem[0]:new Date().getFullYear();
+        if(!DB[year])DB[year]={fields:[],works:[],fertilizers:[],expenses:[]};
+        save();toast(y+'年を削除しました');render();
+      };
+      ap(w,btn,del);bar.appendChild(w);
+    })(ys[i]);
+  }
+  var add=el('button','yb',null,'＋年');
+  add.onclick=function(){
+    var base=2025;var ys2=yrs();for(var i=0;i<ys2.length;i++)if(ys2[i]>base)base=ys2[i];
+    var ny=base+1;DB[ny]={fields:yd().fields.slice(),works:[],fertilizers:[],expenses:[]};
+    year=ny;save();render();
+  };
+  var fm=el('button','yb',null,'圃場管理');fm.onclick=openFieldMgr;
+  ap(bar,add,fm);
+}
+
+/* ── TABS ── */
+function initTabs(){
+  var btns=document.querySelectorAll('.tb');
+  for(var i=0;i<btns.length;i++){
+    (function(btn){
+      btn.addEventListener('click',function(){
+        tab=btn.getAttribute('data-t');
+        var all=document.querySelectorAll('.tb');
+        for(var j=0;j<all.length;j++)all[j].classList.remove('on');
+        btn.classList.add('on');
+        renderMain();
+      });
+    })(btns[i]);
+  }
+}
+
+/* ══════════════════════════════════════════
+   RENDER: SUMMARY
+══════════════════════════════════════════ */
+function renderSummary(){
+  var d=yd();
+  var fc=0,ec=0,th=0;
+  for(var i=0;i<d.fertilizers.length;i++)fc+=d.fertilizers[i].amount*d.fertilizers[i].price;
+  for(var i=0;i<d.expenses.length;i++)ec+=Number(d.expenses[i].amount);
+  for(var i=0;i<d.works.length;i++)th+=getWorkHours(d.works[i]);
+  var tc=fc+ec;
+
+  var mo=[],moc=[];
+  for(var i=0;i<12;i++){
+    var wc=0,cost=0;
+    for(var j=0;j<d.works.length;j++)if(mi(d.works[j].date)===i)wc++;
+    for(var j=0;j<d.expenses.length;j++)if(mi(d.expenses[j].date)===i)cost+=Number(d.expenses[j].amount);
+    for(var j=0;j<d.fertilizers.length;j++)if(mi(d.fertilizers[j].useDate)===i)cost+=d.fertilizers[j].amount*d.fertilizers[j].price;
+    mo.push({v:wc,l:(i+1)+'月'});moc.push({v:cost,l:(i+1)+'月'});
+  }
+  var byT=[],byE=[],byCost=[];
+  var wt_s=wtypes();
+  for(var i=0;i<wt_s.length;i++){
+    var t=wt_s[i],cnt=0,hrs=0;
+    for(var j=0;j<d.works.length;j++)if(d.works[j].type===t){cnt++;hrs+=getWorkHours(d.works[j]);}
+    if(cnt)byT.push({type:t,count:cnt,hours:hrs});
+  }
+  byT.sort(function(a,b){return b.count-a.count;});
+  for(var i=0;i<ET.length;i++){
+    var t=ET[i],tot=0;
+    for(var j=0;j<d.expenses.length;j++)if(d.expenses[j].type===t)tot+=Number(d.expenses[j].amount);
+    if(tot)byE.push({type:t,total:tot});
+  }
+  byE.sort(function(a,b){return b.total-a.total;});
+  for(var i=0;i<d.fields.length;i++){
+    var f=d.fields[i],fert=0,wc2=0,wh=0;
+    for(var j=0;j<d.fertilizers.length;j++)if(d.fertilizers[j].field===f)fert+=d.fertilizers[j].amount*d.fertilizers[j].price;
+    for(var j=0;j<d.works.length;j++)if(d.works[j].field===f){wc2++;wh+=getWorkHours(d.works[j]);}
+    byCost.push({field:f,fert:fert,works:wc2,hours:wh});
+  }
+
+  var root=el('div');
+  root.appendChild(el('h2','sec',null,year+'年 年間サマリー'));
+
+  /* KPI */
+  var kg=el('div','kg');
+  [{icon:'🌾',lbl:'総作業件数',val:d.works.length+'件',c:'var(--paddy)'},
+   {icon:'⏱',lbl:'総作業時間',val:th+'時間',c:'var(--pm)'},
+   {icon:'🌿',lbl:'肥料・農薬費',val:yen(fc),c:'var(--sprout)'},
+   {icon:'💴',lbl:'その他経費',val:yen(ec),c:'var(--straw)'},
+   {icon:'📊',lbl:'経費合計',val:yen(tc),c:'var(--harvest)'}
+  ].forEach(function(k){
+    var ki=el('div','card ki');
+    ap(ki,el('div','ki-icon',null,k.icon),el('div','ki-lbl',null,k.lbl));
+    var v=el('div','ki-val');v.style.color=k.c;v.textContent=k.val;ki.appendChild(v);kg.appendChild(ki);
+  });
+  root.appendChild(kg);
+
+  /* Charts */
+  var g2=el('div','g2');
+  var c1=el('div','card cp');ap(c1,el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px','月別 作業件数'),barChart(mo,'var(--paddy)'));
+  var c2=el('div','card cp');ap(c2,el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px','月別 経費（肥料含む）'),barChart(moc,'var(--straw)'));
+  ap(g2,c1,c2);root.appendChild(g2);
+
+  /* Mid */
+  var g2b=el('div','g2');
+  var wt=el('div','card cp');wt.appendChild(el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px','作業種別 内訳'));
+  if(!byT.length){wt.appendChild(el('p',null,'color:var(--muted);font-size:13px','データなし'));}
+  else{
+    var tbl=el('table');var thead=el('thead');var hr=el('tr');
+    ['作業','件数','時間'].forEach(function(h){ap(hr,el('th',null,'color:var(--muted);border-bottom:1px solid var(--border)',h));});
+    thead.appendChild(hr);tbl.appendChild(thead);var tbody=el('tbody');
+    byT.forEach(function(w,i){
+      var r=el('tr',i%2===0?'r0':'r1');var td1=el('td');td1.appendChild(tbadge(w.type));
+      ap(r,td1,el('td',null,'font-weight:700;color:var(--paddy)',w.count+'件'),el('td',null,'color:var(--muted)',w.hours+'h'));
+      tbody.appendChild(r);
+    });
+    tbl.appendChild(tbody);wt.appendChild(tbl);
+  }
+  var ep=el('div','card cp');ep.appendChild(el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px','経費種別 内訳'));
+  if(!byE.length){ep.appendChild(el('p',null,'color:var(--muted);font-size:13px','データなし'));}
+  else{
+    byE.forEach(function(e,i){
+      var pct=ec>0?(e.total/ec*100):0;var col=EC[i%EC.length];
+      var row=el('div',null,'margin-bottom:9px');
+      var top=el('div',null,'display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px');
+      ap(top,el('span',null,'font-weight:700',e.type),el('span',null,'color:'+col+';font-weight:700',yen(e.total)+' ('+pct.toFixed(0)+'%)'));
+      ap(row,top,progBar(pct,col));ep.appendChild(row);
+    });
+  }
+  ap(g2b,wt,ep);root.appendChild(g2b);
+
+  /* Field summary */
+  var ft=el('div','card cp');ft.appendChild(el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px','圃場別 サマリー'));
+  var tw=el('div','tw');var tbl2=el('table');
+  var th2=el('thead');var hr2=el('tr');hr2.style.background='var(--pp)';
+  ['圃場','作業件数','総作業時間','肥料・農薬費'].forEach(function(h){ap(hr2,el('th',null,'color:var(--paddy)',h));});
+  th2.appendChild(hr2);tbl2.appendChild(th2);var tb2=el('tbody');
+  byCost.forEach(function(r,i){
+    var row=el('tr',i%2===0?'r0':'r1');var td1=el('td');td1.appendChild(fbadge(r.field));
+    ap(row,td1,el('td',null,'font-weight:700;color:var(--paddy)',r.works+'件'),el('td',null,'color:var(--muted)',r.hours+'時間'),el('td',null,'font-weight:700;color:var(--sprout)',yen(r.fert)));
+    tb2.appendChild(row);
+  });
+  tbl2.appendChild(tb2);
+  var tf=el('tfoot');var tfr=el('tr');tfr.style.cssText='background:var(--pp);border-top:2px solid var(--paddy)';
+  ap(tfr,el('td',null,'color:var(--paddy)','合計'),el('td',null,'color:var(--paddy)',d.works.length+'件'),el('td',null,'color:var(--paddy)',th+'時間'),el('td',null,'color:var(--sprout)',yen(fc)));
+  tf.appendChild(tfr);tbl2.appendChild(tf);ap(tw,tbl2);ap(ft,tw);root.appendChild(ft);
+  return root;
+}
+
+/* ══════════════════════════════════════════
+   RENDER: FIELDS
+══════════════════════════════════════════ */
+function renderFields(){
+  var d=yd();
+  if(!fieldTab&&d.fields.length)fieldTab=d.fields[0];
+  var root=el('div');root.appendChild(el('h2','sec',null,'圃場別 詳細集計'));
+  var cr=el('div','cr');
+  d.fields.forEach(function(f){
+    var fc=fhue(f),active=f===fieldTab;
+    var btn=el('button','chip');
+    btn.style.cssText='background:'+(active?fc.dt:fc.bg)+';color:'+(active?'#fff':fc.tx)+';border-color:'+fc.dt;
+    btn.textContent=f;btn.onclick=function(){fieldTab=f;renderMain();};
+    cr.appendChild(btn);
+  });
+  root.appendChild(cr);
+  if(!fieldTab){root.appendChild(el('p','empty',null,'圃場を選択してください'));return root;}
+
+  var fw=[],ff=[];
+  for(var i=0;i<d.works.length;i++)if(d.works[i].field===fieldTab)fw.push(d.works[i]);
+  for(var i=0;i<d.fertilizers.length;i++)if(d.fertilizers[i].field===fieldTab)ff.push(d.fertilizers[i]);
+  var ffc=0;for(var i=0;i<ff.length;i++)ffc+=ff[i].amount*ff[i].price;
+  var fth=0;for(var i=0;i<fw.length;i++)fth+=getWorkHours(fw[i]);
+  var dot=fhue(fieldTab).dt;
+
+  var kg=el('div','kg');
+  [{icon:'🌾',lbl:'総作業件数',val:fw.length+'件'},{icon:'⏱',lbl:'総作業時間',val:fth+'時間'},{icon:'🌿',lbl:'肥料・農薬費',val:yen(ffc)},{icon:'📦',lbl:'使用肥料数',val:ff.length+'品目'}].forEach(function(k){
+    var ki=el('div','card ki');ap(ki,el('div','ki-icon',null,k.icon),el('div','ki-lbl',null,k.lbl));
+    var v=el('div','ki-val');v.style.color=dot;v.textContent=k.val;ki.appendChild(v);kg.appendChild(ki);
+  });
+  root.appendChild(kg);
+
+  var mo2=[];for(var i=0;i<12;i++){var c=0;for(var j=0;j<fw.length;j++)if(mi(fw[j].date)===i)c++;mo2.push({v:c,l:(i+1)+'月'});}
+  var byT2=[];
+  var wt_f=wtypes();
+  for(var i=0;i<wt_f.length;i++){var t=wt_f[i],c=0,h=0;for(var j=0;j<fw.length;j++)if(fw[j].type===t){c++;h+=getWorkHours(fw[j]);}if(c)byT2.push({type:t,count:c,hours:h});}
+
+  var g2=el('div','g2');
+  var ch=el('div','card cp');ap(ch,el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px',fieldTab+' 月別作業件数'),barChart(mo2,dot));
+  var bt=el('div','card cp');bt.appendChild(el('div',null,'font-weight:700;font-size:13px;margin-bottom:12px',fieldTab+' 作業種別'));
+  if(!byT2.length)bt.appendChild(el('p',null,'color:var(--muted)','データなし'));
+  else byT2.forEach(function(w){
+    var row=el('div',null,'display:flex;justify-content:space-between;align-items:center;margin-bottom:7px');
+    var cnt=el('span',null,'font-size:12px');cnt.innerHTML='<b>'+w.count+'</b>件 / '+w.hours+'h';
+    ap(row,tbadge(w.type),cnt);bt.appendChild(row);
+  });
+  ap(g2,ch,bt);root.appendChild(g2);
+
+  /* Work list */
+  var wc=el('div','card cp');wc.style.marginBottom='14px';
+  wc.appendChild(el('div',null,'font-weight:700;font-size:13px;margin-bottom:10px',fieldTab+' 作業履歴'));
+  if(!fw.length){wc.appendChild(el('p','empty',null,'作業記録なし'));}
+  else{
+    var tw=el('div','tw');var tbl=el('table');
+    var thead=el('thead');var hr=el('tr');hr.style.background='var(--pp)';
+    ['日付','作業種別','開始','終了','時間','備考'].forEach(function(h){ap(hr,el('th',null,'color:var(--paddy)',h));});
+    thead.appendChild(hr);tbl.appendChild(thead);var tbody=el('tbody');
+    var sorted=fw.slice().sort(function(a,b){return a.date>b.date?1:-1;});
+    sorted.forEach(function(w,i){
+      var r=el('tr',i%2===0?'r0':'r1');var t2=el('td');t2.appendChild(tbadge(w.type));
+      var hDisp=w.hours!=null&&w.hours!==''?w.hours+'h':getWorkHours(w)>0?getWorkHours(w)+'h':'—';
+      ap(r,
+        el('td',null,null,fd(w.date)),t2,
+        el('td',null,'font-size:12px',w.startTime||'—'),
+        el('td',null,'font-size:12px',w.endTime||'—'),
+        el('td',null,null,hDisp),
+        el('td',null,'color:var(--muted)',w.note||'—')
+      );
+      tbody.appendChild(r);
+    });
+    tbl.appendChild(tbody);tw.appendChild(tbl);wc.appendChild(tw);
+  }
+  root.appendChild(wc);
+
+  /* Fert list */
+  var fc2=el('div','card cp');
+  fc2.appendChild(el('div',null,'font-weight:700;font-size:13px;margin-bottom:10px',fieldTab+' 肥料・農薬使用履歴'));
+  if(!ff.length){fc2.appendChild(el('p','empty',null,'肥料記録なし'));}
+  else{
+    var tw2=el('div','tw');var tbl2=el('table');
+    var th2=el('thead');var hr2=el('tr');hr2.style.background='var(--pp)';
+    ['発注日','使用日','品名','使用量','金額'].forEach(function(h){ap(hr2,el('th',null,'color:var(--paddy)',h));});
+    th2.appendChild(hr2);tbl2.appendChild(th2);var tb2=el('tbody');
+    var sf=ff.slice().sort(function(a,b){return (a.useDate||'')>(b.useDate||'')?1:-1;});
+    sf.forEach(function(f,i){
+      var r=el('tr',i%2===0?'r0':'r1');
+      ap(r,el('td',null,null,fd(f.orderDate)),el('td',null,null,fd(f.useDate)),el('td',null,'font-weight:700',f.name),el('td',null,null,f.amount+f.unit),el('td',null,'font-weight:700;color:var(--sprout)',yen(f.amount*f.price)));
+      tb2.appendChild(r);
+    });
+    tbl2.appendChild(tb2);
+    var tf2=el('tfoot');var fr2=el('tr');fr2.style.cssText='background:var(--pp);border-top-color:var(--paddy)';
+    ap(fr2,el('td',null,'color:var(--paddy)','合計'),el('td'),el('td'),el('td'),el('td',null,'color:var(--sprout)',yen(ffc)));
+    tf2.appendChild(fr2);tbl2.appendChild(tf2);tw2.appendChild(tbl2);fc2.appendChild(tw2);
+  }
+  root.appendChild(fc2);
+  return root;
+}
+
+/* ══════════════════════════════════════════
+   RENDER: WORKS
+══════════════════════════════════════════ */
+function renderWorks(){
+  var d=yd();
+  var wt=wtypes();
+  var rows=[];
+  for(var i=0;i<d.works.length;i++){
+    var w=d.works[i];
+    if((wf.field==='all'||w.field===wf.field)&&(wf.type==='all'||w.type===wf.type))rows.push(w);
+  }
+  rows.sort(function(a,b){return a.date>b.date?1:-1;});
+  var th=0;for(var i=0;i<rows.length;i++)th+=Number(rows[i].hours||0);
+
+  /* 時刻 "HH:MM" → 分数 */
+  function toMin(t){
+    if(!t||t.indexOf(':')<0)return null;
+    var p=t.split(':');return parseInt(p[0],10)*60+parseInt(p[1],10);
+  }
+  /* 分数 → "H時間M分" 表示 */
+  function fmtDur(min){
+    if(min==null||isNaN(min)||min<0)return '—';
+    var h=Math.floor(min/60),m=min%60;
+    return h>0?(h+'時間'+(m>0?m+'分':'')):(m+'分');
+  }
+  /* 分数 → 小数時間（0.5単位切捨て）*/
+  function minToHour(min){
+    if(min==null)return null;
+    return Math.floor(min/30)*0.5;
+  }
+
+  /* 時刻選択：「時」「分」別セレクト。分は1分刻み */
+  function mkTimeSelect(val){
+    var hh='', mm='';
+    if(val && val.indexOf(':')>=0){
+      hh=val.split(':')[0];
+      mm=val.split(':')[1];
+    }
+
+    /* 時セレクト（空白 + 0〜23時） */
+    var hOpts=[['','--']];
+    for(var i=0;i<24;i++) hOpts.push([String(i).padStart(2,'0'), String(i)+'時']);
+    var hSel=mkS(hOpts, hh);
+    hSel.style.cssText='font-size:16px;padding:8px 4px;flex:1;min-width:0;';
+
+    /* 分セレクト（空白 + 0〜59分、1分刻み） */
+    var mOpts=[['','--']];
+    for(var i=0;i<60;i++) mOpts.push([String(i).padStart(2,'0'), String(i)+'分']);
+    var mSel=mkS(mOpts, mm);
+    mSel.style.cssText='font-size:16px;padding:8px 4px;flex:1;min-width:0;';
+
+    /* 横並びコンテナ */
+    var row=el('div',null,'display:flex;align-items:center;gap:4px;');
+    var sep=el('span',null,'font-weight:700;font-size:16px;flex-shrink:0;',':');
+    ap(row, hSel, sep, mSel);
+
+    function getVal(){
+      if(!hSel.value || !mSel.value) return '';
+      return hSel.value+':'+mSel.value;
+    }
+    return {row:row, hSel:hSel, mSel:mSel, getVal:getVal};
+  }
+
+  function openForm(rec){
+    var isNew=!rec;
+    var wt2=wtypes();
+    var today=new Date();
+    var ymd=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    var def=rec||{date:ymd,field:d.fields[0]||'',type:wt2[0]||'',startTime:'',endTime:'',hours:'',note:''};
+
+    var wrap=el('div');
+
+    /* 日付・圃場・種別 */
+    var di=mkI('date',def.date);
+    var fi=mkS(fieldOpts(),def.field);
+    var ti=mkS(wt2.map(function(t){return[t,t];}),def.type);
+    ap(wrap,fld('日付',di),fld('圃場',fi),fld('作業種別',ti));
+
+    /* ── 時刻ブロック ── */
+    var timeBlock=el('div',null,'background:var(--pp);border-radius:10px;padding:12px 14px;margin-bottom:12px;');
+
+    /* 開始・終了を横並び */
+    var timeRow=el('div',null,'display:flex;gap:12px;flex-wrap:wrap;');
+    var startWrap=el('div',null,'flex:1;min-width:130px;');
+    var endWrap=el('div',null,'flex:1;min-width:130px;');
+
+    var startSel=mkTimeSelect(def.startTime||'');
+    var endSel=mkTimeSelect(def.endTime||'');
+
+    ap(startWrap, el('label','fl',null,'🌅 開始時刻'), startSel.row);
+    ap(endWrap,   el('label','fl',null,'🌇 終了時刻'), endSel.row);
+    ap(timeRow, startWrap, endWrap);
+    timeBlock.appendChild(timeRow);
+
+    /* 計算結果プレビュー */
+    var preview=el('div',null,'margin-top:10px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;');
+    var durSpan=el('span',null,'font-weight:700;color:var(--paddy);font-size:15px','—');
+    var hintSpan=el('span',null,'color:var(--muted);font-size:12px','');
+    ap(preview, el('span',null,'color:var(--muted)','作業時間: '), durSpan, hintSpan);
+    timeBlock.appendChild(preview);
+    wrap.appendChild(timeBlock);
+
+    /* 作業時間（自動計算 or 手動） */
+    var hi=mkI('number',def.hours!==''&&def.hours!=null?def.hours:'',{step:'0.1',placeholder:'時刻選択で自動計算'});
+    wrap.appendChild(fld('作業時間（時間）　※時刻選択で自動計算',hi));
+
+    var ni=mkT(def.note);
+    wrap.appendChild(fld('備考',ni));
+
+    /* 時刻変更 → 自動計算 */
+    function calcTime(){
+      var sv=startSel.getVal(), ev=endSel.getVal();
+      var sm=toMin(sv), em=toMin(ev);
+      if(sm==null||em==null){durSpan.textContent='—';hintSpan.textContent='';return;}
+      var diff=em-sm;
+      if(diff<=0) diff+=24*60;
+      durSpan.textContent=fmtDur(diff);
+      /* 1分単位で小数時間に変換（小数点1位まで） */
+      var h=Math.round(diff/60*10)/10;
+      hintSpan.textContent='（'+h+'時間として記録）';
+      hi.value=h;
+    }
+    startSel.hSel.onchange=calcTime; startSel.mSel.onchange=calcTime;
+    endSel.hSel.onchange=calcTime;   endSel.mSel.onchange=calcTime;
+    calcTime();
+
+    /* ── ボタン ── */
+    var btns=el('div',null,'display:flex;gap:8px;justify-content:flex-end;margin-top:4px');
+    var cc=el('button','btn bm',null,'キャンセル'), sv2=el('button','btn bp',null,'保存');
+    var ov=null;
+    cc.onclick=function(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);};
+    sv2.onclick=function(){
+      if(!di.value){toast('日付を入力してください');return;}
+      var entry={
+        id:isNew?nid(d.works):rec.id,
+        date:di.value, field:fi.value, type:ti.value,
+        startTime:startSel.getVal(),
+        endTime:endSel.getVal(),
+        hours:hi.value!==''?Number(hi.value):null,
+        note:ni.value
+      };
+      if(isNew) d.works.push(entry);
+      else for(var i=0;i<d.works.length;i++) if(d.works[i].id===rec.id){d.works[i]=entry;break;}
+      save();
+      if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+      toast(isNew?'作業を追加しました':'作業を更新しました');
+      renderMain();
+    };
+    ap(btns,cc,sv2); wrap.appendChild(btns);
+    ov=openModal(isNew?'作業追加':'作業編集', wrap);
+
+    /* 新規追加時：開始時刻を現在時刻に自動セット */
+    if(isNew && !def.startTime){
+      var now=new Date();
+      startSel.hSel.value=String(now.getHours()).padStart(2,'0');
+      startSel.mSel.value=String(now.getMinutes()).padStart(2,'0');
+      calcTime();
+    }
+  }
+
+  var root=el('div');
+  var top=el('div','rrow');
+  var h2=el('h2','sec',null,'作業記録');h2.style.margin='0';
+  var topRight=el('div',null,'display:flex;gap:8px;align-items:center');
+  var mgrBtn=el('button','btn bm bs',null,'種別管理');
+  mgrBtn.onclick=function(){openWorkTypeMgr();};
+  var add=el('button','btn bp',null,'＋ 作業追加');add.onclick=function(){openForm(null);};
+  ap(topRight,mgrBtn,add);
+  ap(top,h2,topRight);root.appendChild(top);
+
+  var fr=el('div','fr');
+  var fs=mkS([['all','全圃場']].concat(d.fields.map(function(f){return[f,f];})),wf.field);fs.className='fsel';
+  fs.onchange=function(){wf.field=this.value;renderMain();};
+  var ts=mkS([['all','全作業']].concat(wt.map(function(t){return[t,t];})),wf.type);ts.className='fsel';
+  ts.onchange=function(){wf.type=this.value;renderMain();};
+  ap(fr,fs,ts,el('span',null,'font-size:12px;color:var(--muted)',rows.length+'件 / 計'+th+'時間'));
+  root.appendChild(fr);
+  if(!rows.length){root.appendChild(el('p','empty',null,'該当する作業記録がありません'));return root;}
+
+  /* テーブル（開始・終了時刻カラム追加） */
+  var tw=el('div','card tw');var tbl=el('table');
+  var thead=el('thead');var hr=el('tr');hr.style.background='var(--pp)';
+  ['日付','圃場','作業種別','開始','終了','時間','備考',''].forEach(function(h){
+    ap(hr,el('th',null,'color:var(--paddy)',h));
+  });
+  thead.appendChild(hr);tbl.appendChild(thead);var tbody=el('tbody');
+
+  rows.forEach(function(w,i){
+    (function(w,i){
+      var r=el('tr',i%2===0?'r0':'r1');
+      var td2=el('td');td2.appendChild(fbadge(w.field));
+      var td3=el('td');td3.appendChild(tbadge(w.type));
+
+      /* 開始・終了時刻 */
+      var startTxt=w.startTime||'—';
+      var endTxt=w.endTime||'—';
+      var tdStart=el('td',null,'white-space:nowrap;font-size:12px',startTxt);
+      var tdEnd=el('td',null,'white-space:nowrap;font-size:12px',endTxt);
+
+      /* 時間表示（時刻から計算済みを優先） */
+      var hoursDisp='—';
+      if(w.hours!=null&&w.hours!==''){
+        hoursDisp=w.hours+'h';
+      } else if(w.startTime&&w.endTime){
+        var sm=toMin(w.startTime),em=toMin(w.endTime);
+        if(sm!=null&&em!=null){
+          var diff=em-sm;if(diff<=0)diff+=1440;
+          hoursDisp=fmtDur(diff);
+        }
+      }
+      var tdH=el('td',null,'white-space:nowrap',hoursDisp);
+
+      var tdOp=el('td',null,'white-space:nowrap');
+      var eb=el('button','btn bg2 bs',null,'編集');eb.style.marginRight='4px';eb.onclick=function(){openForm(w);};
+      var db=el('button','btn bd bs',null,'削除');
+      db.onclick=function(){
+        if(!confirm('削除しますか？'))return;
+        DB[year].works=d.works.filter(function(x){return x.id!==w.id;});
+        save();toast('削除しました');renderMain();
+      };
+      ap(tdOp,eb,db);
+      ap(r,
+        el('td',null,'white-space:nowrap',fd(w.date)),
+        td2,td3,tdStart,tdEnd,tdH,
+        el('td',null,'color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',w.note||'—'),
+        tdOp
+      );
+      tbody.appendChild(r);
+    })(w,i);
+  });
+  tbl.appendChild(tbody);tw.appendChild(tbl);root.appendChild(tw);
+  return root;
+}
+
+/* ══════════════════════════════════════════
+   RENDER: INPUTS（肥料・農薬）
+══════════════════════════════════════════ */
+function renderInputs(){
+  var d=yd();
+  var rows=d.fertilizers.slice().sort(function(a,b){return (a.useDate||'')>(b.useDate||'')?1:-1;});
+  var total=0;for(var i=0;i<rows.length;i++)total+=rows[i].amount*rows[i].price;
+
+  function openForm(rec){
+    var isNew=!rec;
+    var def=rec||{orderDate:'',useDate:'',name:'',amount:'',unit:'kg',price:'',field:d.fields[0]||''};
+    var wrap=el('div');
+    var od=mkI('date',def.orderDate),ud=mkI('date',def.useDate);
+    var nm=mkI('text',def.name,{placeholder:'有機肥料A など'});
+    var fi=mkS(fieldOpts(),def.field);
+    var am=mkI('number',def.amount),un=mkS(UT.map(function(u){return[u,u];}),def.unit),pr=mkI('number',def.price);
+    ap(wrap,fld('発注日',od),fld('使用日',ud),fld('品名',nm),fld('圃場',fi),fld('使用量',am),fld('単位',un),fld('単価（円）',pr));
+    var prev=el('div',null,'background:var(--pp);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px;color:var(--paddy);font-weight:700;display:none');
+    function upd(){if(am.value&&pr.value){prev.style.display='block';prev.textContent='金額: '+yen(Number(am.value)*Number(pr.value));}else prev.style.display='none';}
+    am.oninput=upd;pr.oninput=upd;upd();wrap.appendChild(prev);
+    var btns=el('div',null,'display:flex;gap:8px;justify-content:flex-end;margin-top:4px');
+    var cc=el('button','btn bm',null,'キャンセル'),sv=el('button','btn bp',null,'保存');var ov=null;
+    cc.onclick=function(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);};
+    sv.onclick=function(){
+      var entry={id:isNew?nid(d.fertilizers):rec.id,orderDate:od.value,useDate:ud.value,name:nm.value,field:fi.value,amount:Number(am.value),unit:un.value,price:Number(pr.value)};
+      if(isNew)d.fertilizers.push(entry);
+      else for(var i=0;i<d.fertilizers.length;i++)if(d.fertilizers[i].id===rec.id){d.fertilizers[i]=entry;break;}
+      save();if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);toast(isNew?'追加しました':'更新しました');renderMain();
+    };
+    ap(btns,cc,sv);wrap.appendChild(btns);ov=openModal(isNew?'肥料・農薬 追加':'肥料・農薬 編集',wrap);
+  }
+
+  var root=el('div');
+  var top=el('div','rrow');var h2=el('h2','sec',null,'肥料・農薬管理');h2.style.margin='0';
+  var right=el('div',null,'display:flex;align-items:center;gap:8px');
+  ap(right,el('span',null,'background:var(--pp);color:var(--sprout);border-radius:99px;padding:4px 12px;font-size:13px;font-weight:700','合計: '+yen(total)));
+  var add=el('button','btn bp',null,'＋ 追加');add.onclick=function(){openForm(null);};
+  right.appendChild(add);ap(top,h2,right);root.appendChild(top);
+  if(!rows.length){root.appendChild(el('p','empty',null,'記録がありません'));return root;}
+
+  var tw=el('div','card tw');var tbl=el('table');
+  var thead=el('thead');var hr=el('tr');hr.style.background='var(--pp)';
+  ['発注日','使用日','品名','圃場','使用量','単価','金額',''].forEach(function(h){ap(hr,el('th',null,'color:var(--paddy)',h));});
+  thead.appendChild(hr);tbl.appendChild(thead);var tbody=el('tbody');
+  rows.forEach(function(f,i){
+    (function(f,i){
+      var r=el('tr',i%2===0?'r0':'r1');
+      var td4=el('td');td4.appendChild(fbadge(f.field));
+      var td8=el('td',null,'white-space:nowrap');
+      var eb=el('button','btn bg2 bs',null,'編集');eb.style.marginRight='4px';eb.onclick=function(){openForm(f);};
+      var db=el('button','btn bd bs',null,'削除');
+      db.onclick=function(){
+        if(!confirm('削除しますか？'))return;
+        DB[year].fertilizers=d.fertilizers.filter(function(x){return x.id!==f.id;});
+        save();toast('削除しました');renderMain();
+      };
+      ap(td8,eb,db);
+      ap(r,el('td',null,'white-space:nowrap',fd(f.orderDate)),el('td',null,'white-space:nowrap',fd(f.useDate)),el('td',null,'font-weight:700',f.name),td4,el('td',null,null,f.amount+f.unit),el('td',null,null,yen(f.price)+'/'+f.unit),el('td',null,'font-weight:700;color:var(--sprout)',yen(f.amount*f.price)),td8);
+      tbody.appendChild(r);
+    })(f,i);
+  });
+  tbl.appendChild(tbody);
+  var tf=el('tfoot');var tfr=el('tr');tfr.style.cssText='background:var(--pp);border-top-color:var(--paddy)';
+  ap(tfr,el('td',null,'color:var(--paddy)','合計'),el('td'),el('td'),el('td'),el('td'),el('td'),el('td',null,'color:var(--sprout)',yen(total)),el('td'));
+  tf.appendChild(tfr);tbl.appendChild(tf);tw.appendChild(tbl);root.appendChild(tw);
+  return root;
+}
+
+/* ══════════════════════════════════════════
+   RENDER: EXPENSES
+══════════════════════════════════════════ */
+function renderExpenses(){
+  var d=yd();
+  var rows=[];
+  for(var i=0;i<d.expenses.length;i++)if(ef==='all'||d.expenses[i].type===ef)rows.push(d.expenses[i]);
+  rows.sort(function(a,b){return a.date>b.date?1:-1;});
+  var total=0;for(var i=0;i<rows.length;i++)total+=Number(rows[i].amount);
+  var grand=0;for(var i=0;i<d.expenses.length;i++)grand+=Number(d.expenses[i].amount);
+
+  function openForm(rec){
+    var isNew=!rec;
+    var def=rec||{date:'',type:ET[0],item:'',amount:'',note:''};
+    var wrap=el('div');
+    var di=mkI('date',def.date),ti=mkS(ET.map(function(t){return[t,t];}),def.type);
+    var ii=mkI('text',def.item,{placeholder:'軽油、除草剤 など'}),ai=mkI('number',def.amount),ni=mkT(def.note);
+    ap(wrap,fld('日付',di),fld('種別',ti),fld('品目',ii),fld('金額（円）',ai),fld('備考',ni));
+    var btns=el('div',null,'display:flex;gap:8px;justify-content:flex-end;margin-top:4px');
+    var cc=el('button','btn bm',null,'キャンセル'),sv=el('button','btn bp',null,'保存');var ov=null;
+    cc.onclick=function(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);};
+    sv.onclick=function(){
+      var entry={id:isNew?nid(d.expenses):rec.id,date:di.value,type:ti.value,item:ii.value,amount:Number(ai.value),note:ni.value};
+      if(isNew)d.expenses.push(entry);
+      else for(var i=0;i<d.expenses.length;i++)if(d.expenses[i].id===rec.id){d.expenses[i]=entry;break;}
+      save();if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);toast(isNew?'追加しました':'更新しました');renderMain();
+    };
+    ap(btns,cc,sv);wrap.appendChild(btns);ov=openModal(isNew?'経費追加':'経費編集',wrap);
+  }
+
+  var root=el('div');
+  var top=el('div','rrow');var h2=el('h2','sec',null,'経費管理');h2.style.margin='0';
+  var right=el('div',null,'display:flex;align-items:center;gap:8px');
+  ap(right,el('span',null,'background:var(--sp);color:var(--straw);border-radius:99px;padding:4px 12px;font-size:13px;font-weight:700','年間合計: '+yen(grand)));
+  var add=el('button','btn bp',null,'＋ 追加');add.onclick=function(){openForm(null);};
+  right.appendChild(add);ap(top,h2,right);root.appendChild(top);
+
+  var fr=el('div','fr');
+  var fs=mkS([['all','全種別']].concat(ET.map(function(t){return[t,t];})),ef);fs.className='fsel';
+  fs.onchange=function(){ef=this.value;renderMain();};
+  fr.appendChild(fs);
+  if(ef!=='all')fr.appendChild(el('span',null,'font-size:12px;color:var(--straw);font-weight:700','絞込合計: '+yen(total)));
+  root.appendChild(fr);
+  if(!rows.length){root.appendChild(el('p','empty',null,'記録がありません'));return root;}
+
+  var tw=el('div','card tw');var tbl=el('table');
+  var thead=el('thead');var hr=el('tr');hr.style.background='var(--sp)';
+  ['日付','種別','品目','金額','備考',''].forEach(function(h){ap(hr,el('th',null,'color:var(--earth)',h));});
+  thead.appendChild(hr);tbl.appendChild(thead);var tbody=el('tbody');
+  rows.forEach(function(e,i){
+    (function(e,i){
+      var r=el('tr',i%2===0?'r0':'r1');
+      var td2=el('td');td2.appendChild(tbadge(e.type,true));
+      var td6=el('td',null,'white-space:nowrap');
+      var eb=el('button','btn bg2 bs',null,'編集');eb.style.marginRight='4px';eb.onclick=function(){openForm(e);};
+      var db=el('button','btn bd bs',null,'削除');
+      db.onclick=function(){
+        if(!confirm('削除しますか？'))return;
+        DB[year].expenses=d.expenses.filter(function(x){return x.id!==e.id;});
+        save();toast('削除しました');renderMain();
+      };
+      ap(td6,eb,db);
+      ap(r,el('td',null,'white-space:nowrap',fd(e.date)),td2,el('td',null,'font-weight:700',e.item),el('td',null,'font-weight:700;color:var(--straw)',yen(e.amount)),el('td',null,'color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',e.note||'—'),td6);
+      tbody.appendChild(r);
+    })(e,i);
+  });
+  tbl.appendChild(tbody);
+  var tf=el('tfoot');var tfr=el('tr');tfr.style.cssText='background:var(--sp);border-top-color:var(--straw)';
+  ap(tfr,el('td',null,'color:var(--earth)',ef==='all'?'合計':ef+' 合計'),el('td'),el('td'),el('td',null,'color:var(--straw)',yen(total)),el('td'),el('td'));
+  tf.appendChild(tfr);tbl.appendChild(tf);tw.appendChild(tbl);root.appendChild(tw);
+  return root;
+}
+
+/* ══════════════════════════════════════════
+   WORK TYPE MANAGER（作業種別の追加・編集・削除・並び替え）
+══════════════════════════════════════════ */
+function openWorkTypeMgr(){
+  var ov=null;
+
+  function saveTypes(newList){
+    DB._wtypes=newList;
+    save();
+    renderMain(); /* 作業記録タブのフィルターも更新 */
+  }
+
+  function refresh(){
+    if(!ov)return;
+    var box=ov.querySelector('.mb');if(!box)return;
+    var old=document.getElementById('wt-body');
+    if(old&&old.parentNode)old.parentNode.removeChild(old);
+    var b=buildBody();b.id='wt-body';
+    var mh=box.querySelector('.mh');
+    if(mh&&mh.nextSibling)box.insertBefore(b,mh.nextSibling);else box.appendChild(b);
+  }
+
+  function buildBody(){
+    var list=wtypes().slice(); /* コピー */
+    var wrap=el('div');
+
+    /* 説明 */
+    wrap.appendChild(el('p',null,'font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6',
+      '種別の編集・削除は既存の作業記録には影響しません。並び順はドラッグで変更できます。'));
+
+    /* 種別リスト */
+    var listEl=el('div',null,'margin-bottom:14px');
+
+    function buildItem(name,idx){
+      var editing=false;
+      var row=el('div',null,'display:flex;align-items:center;gap:8px;background:var(--rice);border:1px solid var(--border);border-radius:10px;padding:8px 11px;margin-bottom:7px;');
+
+      /* ドラッグハンドル */
+      var handle=el('span',null,'font-size:16px;cursor:grab;color:var(--muted);user-select:none;flex-shrink:0','⠿');
+      handle.title='ドラッグで並び替え';
+      row.setAttribute('draggable','true');
+      row.setAttribute('data-idx',String(idx));
+      row.addEventListener('dragstart',function(e){
+        e.dataTransfer.setData('text/plain',String(idx));
+        row.style.opacity='0.4';
+      });
+      row.addEventListener('dragend',function(){row.style.opacity='1';});
+      row.addEventListener('dragover',function(e){e.preventDefault();row.style.background='var(--pp)';});
+      row.addEventListener('dragleave',function(){row.style.background='var(--rice)';});
+      row.addEventListener('drop',function(e){
+        e.preventDefault();row.style.background='var(--rice)';
+        var fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10);
+        var toIdx=parseInt(row.getAttribute('data-idx'),10);
+        if(fromIdx===toIdx)return;
+        var cur=wtypes().slice();
+        var item=cur.splice(fromIdx,1)[0];
+        cur.splice(toIdx,0,item);
+        saveTypes(cur);refresh();
+      });
+
+      /* 種別名表示 */
+      var ns=el('span',null,'font-size:13px;font-weight:700;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',name);
+      var ei=el('input','inp');ei.type='text';ei.value=name;
+      ei.style.cssText='flex:1;font-size:15px;display:none;padding:5px 8px;';
+
+      /* 編集ボタン */
+      var eb=el('button',null,'border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--paddy);font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;min-height:32px;background:transparent;font-family:inherit','編集');
+      eb.onclick=function(){
+        if(!editing){
+          editing=true;
+          ns.style.display='none';ei.style.display='block';ei.focus();ei.select();
+          eb.textContent='保存';
+          eb.style.cssText='border:none;border-radius:6px;cursor:pointer;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;min-height:32px;background:var(--paddy);font-family:inherit';
+        }else{
+          var nn=ei.value.trim();
+          if(!nn){toast('種別名を入力してください');return;}
+          var cur=wtypes().slice();
+          if(nn!==name&&cur.indexOf(nn)>=0){toast('同じ名前が既に存在します');return;}
+          var pos=cur.indexOf(name);
+          if(pos>=0)cur[pos]=nn;
+          saveTypes(cur);
+          toast('「'+name+'」→「'+nn+'」に変更しました');
+          refresh();
+        }
+      };
+
+      /* 削除ボタン */
+      var db=el('button',null,'border:1px solid #c0602a66;border-radius:6px;cursor:pointer;color:var(--harvest);font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;min-height:32px;background:transparent;font-family:inherit','削除');
+      db.onclick=function(){
+        if(!confirm('「'+name+'」を削除しますか？\n既存の作業記録には影響しません。'))return;
+        var cur=wtypes().slice();
+        var pos=cur.indexOf(name);
+        if(pos>=0)cur.splice(pos,1);
+        saveTypes(cur);
+        toast(name+'を削除しました');
+        refresh();
+      };
+
+      ap(row,handle,ns,ei,eb,db);
+      return row;
+    }
+
+    var cur=wtypes();
+    for(var i=0;i<cur.length;i++)listEl.appendChild(buildItem(cur[i],i));
+    wrap.appendChild(listEl);
+
+    /* 新規追加 */
+    var addRow=el('div',null,'display:flex;gap:8px;margin-bottom:12px');
+    var ni=el('input','inp');ni.type='text';ni.placeholder='新しい種別名（例: 畔草刈り）';ni.style.cssText='flex:1;font-size:15px;';
+    var ab=el('button','btn bp','white-space:nowrap','＋ 追加');
+    ab.onclick=function(){
+      var name=ni.value.trim();
+      if(!name){toast('種別名を入力してください');return;}
+      var cur=wtypes().slice();
+      if(cur.indexOf(name)>=0){toast('同じ名前が既に存在します');return;}
+      cur.push(name);
+      saveTypes(cur);
+      toast(name+'を追加しました');
+      ni.value='';refresh();
+    };
+    /* Enterキーでも追加 */
+    ni.addEventListener('keydown',function(e){if(e.key==='Enter'){ab.onclick();}});
+    ap(addRow,ni,ab);
+    wrap.appendChild(addRow);
+
+    /* デフォルトに戻すボタン */
+    var resetRow=el('div',null,'text-align:right;margin-top:4px');
+    var resetBtn=el('button','btn bm bs','font-size:11px','デフォルトに戻す');
+    resetBtn.onclick=function(){
+      if(!confirm('作業種別をデフォルトの9種類に戻しますか？'))return;
+      saveTypes(WT_DEFAULT.slice());
+      toast('デフォルトに戻しました');
+      refresh();
+    };
+    resetRow.appendChild(resetBtn);
+    wrap.appendChild(resetRow);
+
+    return wrap;
+  }
+
+  var body=buildBody();body.id='wt-body';
+  ov=openModal('作業種別の管理',body);
+}
+
+/* ══════════════════════════════════════════
+   FIELD MANAGER
+══════════════════════════════════════════ */
+function openFieldMgr(){
+  var ov=null;
+  function refresh(){
+    if(!ov)return;
+    var box=ov.querySelector('.mb');if(!box)return;
+    var old=document.getElementById('fm-body');
+    if(old&&old.parentNode)old.parentNode.removeChild(old);
+    var b=buildBody();b.id='fm-body';
+    var mh=box.querySelector('.mh');
+    if(mh&&mh.nextSibling)box.insertBefore(b,mh.nextSibling);else box.appendChild(b);
+  }
+  function buildBody(){
+    var d2=yd();var wrap=el('div');var list=el('div',null,'margin-bottom:14px');
+    d2.fields.forEach(function(f,i){
+      (function(f,i){
+        var fc=FH[i%10];var editing=false;
+        var row=el('div',null,'display:flex;align-items:center;background:'+fc.bg+';border:1px solid '+fc.dt+'55;border-radius:10px;padding:8px 11px;margin-bottom:7px;gap:8px');
+        var dot=el('span',null,'width:8px;height:8px;border-radius:99px;background:'+fc.dt+';display:inline-block;flex-shrink:0');
+        var ns=el('span',null,'font-size:13px;font-weight:700;color:'+fc.tx+';flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',f);
+        var ei=el('input','inp');ei.type='text';ei.value=f;ei.style.cssText='flex:1;font-size:15px;display:none;padding:5px 8px;';
+        var eb=el('button',null,'border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--paddy);font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;min-height:32px;background:transparent;font-family:inherit','編集');
+        var db=el('button',null,'border:1px solid #c0602a66;border-radius:6px;cursor:pointer;color:var(--harvest);font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;min-height:32px;background:transparent;font-family:inherit','削除');
+        eb.onclick=function(){
+          if(!editing){
+            editing=true;ns.style.display='none';ei.style.display='block';ei.focus();ei.select();
+            eb.textContent='保存';eb.style.cssText='border:none;border-radius:6px;cursor:pointer;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;min-height:32px;background:var(--paddy);font-family:inherit';
+          }else{
+            var nn=ei.value.trim();if(!nn)return;
+            var d3=yd();if(nn!==f&&d3.fields.indexOf(nn)>=0){toast('同じ名前が既に存在します');return;}
+            if(nn!==f){
+              DB[year].fields=DB[year].fields.map(function(x){return x===f?nn:x;});
+              DB[year].works=DB[year].works.map(function(w){return w.field===f?{id:w.id,date:w.date,field:nn,type:w.type,hours:w.hours,note:w.note}:w;});
+              DB[year].fertilizers=DB[year].fertilizers.map(function(x){return x.field===f?{id:x.id,orderDate:x.orderDate,useDate:x.useDate,name:x.name,amount:x.amount,unit:x.unit,price:x.price,field:nn}:x;});
+              if(fieldTab===f)fieldTab=nn;
+              save();toast('「'+f+'」→「'+nn+'」に変更しました');renderMain();
+            }
+            refresh();
+          }
+        };
+        db.onclick=function(){
+          if(!confirm('「'+f+'」を削除しますか？'))return;
+          DB[year].fields=DB[year].fields.filter(function(x){return x!==f;});
+          if(fieldTab===f)fieldTab=DB[year].fields[0]||'';
+          save();toast(f+'を削除しました');renderMain();refresh();
+        };
+        ap(row,dot,ns,ei,eb,db);list.appendChild(row);
+      })(f,i);
+    });
+    var addRow=el('div',null,'display:flex;gap:8px');
+    var ni=el('input','inp');ni.type='text';ni.placeholder='新しい圃場名';ni.style.cssText='flex:1;font-size:15px;';
+    var ab=el('button','btn bp','white-space:nowrap','＋ 追加');
+    ab.onclick=function(){
+      var name=ni.value.trim();if(!name)return;
+      var d3=yd();if(d3.fields.indexOf(name)>=0){toast('同じ名前が既に存在します');return;}
+      if(d3.fields.length>=10){toast('最大10圃場まで登録できます');return;}
+      DB[year].fields.push(name);save();toast(name+'を追加しました');renderMain();ni.value='';refresh();
+    };
+    ap(addRow,ni,ab);
+    ap(wrap,list,addRow,el('p',null,'font-size:11px;color:var(--muted);margin-top:8px','最大10圃場まで登録できます'));
+    return wrap;
+  }
+  var body=buildBody();body.id='fm-body';
+  ov=openModal('圃場の管理',body);
+}
+
+/* ── RENDER ── */
+function renderMain(){
+  var main=document.getElementById('main');main.innerHTML='';
+  var c=null;
+  if(tab==='summary')c=renderSummary();
+  else if(tab==='fields')c=renderFields();
+  else if(tab==='works')c=renderWorks();
+  else if(tab==='inputs')c=renderInputs();
+  else if(tab==='expenses')c=renderExpenses();
+  if(c)main.appendChild(c);
+}
+function render(){renderYearBar();renderMain();}
+
+/* ── INIT ── */
+lload();
+if(!Object.keys(DB).length)DB={2024:mkSample()};
+year=yrs()[0]||2024;
+initTabs();
+
+/* onclick属性から呼べるようグローバルに公開 */
+window.doCopy    = doCopy;
+window.doConnect = doConnect;
+window.doSync    = doSync;
+window.openGasSet= openGasSet;
+
+var savedUrl=LS.get(GUK);
+if(savedUrl){
+  gasUrl=savedUrl;
+  document.getElementById('setup').style.display='none';
+  document.getElementById('sbar').style.display='flex';
+  sstat('saving','接続中…');
+  render();
+  setTimeout(doSync,300);
+} else {
+  /* セットアップ画面のみ表示（アプリ本体は非表示） */
+  document.getElementById('hdr').style.display='none';
+  document.getElementById('tabs').style.display='none';
+  document.getElementById('main').style.display='none';
+  document.getElementById('sbar').style.display='none';
+}
+</script>
+</body>
+</html>
